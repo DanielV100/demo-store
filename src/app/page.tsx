@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Toaster, toast } from "sonner";
-import { ShoppingCart, Search, Heart, Star, Sparkles, SlidersHorizontal, SunMedium, Moon, Menu, CheckCircle2, Wand2, Palette, Cpu, Rocket, Zap, ArrowRight, Info, CreditCard, ShieldCheck, Truck, Eye, ChevronLeft, ChevronRight, LayoutGrid, Rows, Percent, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
+import { ShoppingCart, Search, Heart, Star, Sparkles, SlidersHorizontal, SunMedium, Moon, Menu, CheckCircle2, Wand2, Palette, Cpu, Rocket, Zap, ArrowRight, Info, CreditCard, ShieldCheck, Truck, Eye, ChevronLeft, ChevronRight, LayoutGrid, Rows, Percent, Instagram, Linkedin, Twitter, Youtube, Factory, FolderTree } from "lucide-react";
 import { WavyBackground } from "@/components/ui/wavy-background";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { FlipWords } from "@/components/ui/flip-words";
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay"
+import { EugenChatProvider } from "./eugen";
 
 /**
  * EUGEN — Demo E‑Commerce Frontstore (sonner + WOW splash + theme switch)
@@ -33,11 +34,11 @@ import Autoplay from "embla-carousel-autoplay"
 const words = ["love", "trust", "choose", "prefer"];
 const products = [
   { id: "p1", name: "EUGEN Pro Laptop 14", price: 1499, img: "/test1.jpeg", rating: 4.8, tags: ["AI Recommended", "Bestseller"], specs: ["AMD Ryzen 9", "32GB RAM", "2TB NVMe"], color: "#189AB4" },
-  { id: "p2", name: "EUGEN Studio Monitor 27", price: 399, img: "/test3.jpg", rating: 4.6, tags: ["Creator Pick"], specs: ["4K IPS", "100% sRGB", "USB-C"], color: "#75E6DA" },
-  { id: "p3", name: "EUGEN Mechanical Keyboard", price: 129, img: "/test4.jpg", rating: 4.7, tags: ["New"], specs: ["Hot-swap", "Hall Effect", "Tri-mode"], color: "#05445E" },
-  { id: "p4", name: "EUGEN Noise-Cancel Headset", price: 219, img: "/demo/headset-1.jpg", rating: 4.5, tags: ["Work From Anywhere"], specs: ["ANC", "Dual Mic", "40h"], color: "#189AB4" },
-  { id: "p5", name: "EUGEN Portable SSD 2TB", price: 179, img: "/demo/ssd-1.jpg", rating: 4.9, tags: ["Ultra Fast"], specs: ["USB 4.0", "3,800MB/s", "IP67"], color: "#75E6DA" },
-  { id: "p6", name: "EUGEN Creator Mouse", price: 89, img: "/demo/mouse-1.jpg", rating: 4.4, tags: ["Ergonomic"], specs: ["8K Polling", "MagWheel", "Quiet"], color: "#05445E" },
+  { id: "p2", name: "EUGEN Studio Monitor 27", price: 399, img: "/test2.jpeg", rating: 4.6, tags: ["Creator Pick"], specs: ["4K IPS", "100% sRGB", "USB-C"], color: "#75E6DA" },
+  { id: "p3", name: "EUGEN Mechanical Keyboard", price: 129, img: "/test3.jpeg", rating: 4.7, tags: ["New"], specs: ["Hot-swap", "Hall Effect", "Tri-mode"], color: "#05445E" },
+  { id: "p4", name: "EUGEN Noise-Cancel Headset", price: 219, img: "/test4.jpeg", rating: 4.5, tags: ["Work From Anywhere"], specs: ["ANC", "Dual Mic", "40h"], color: "#189AB4" },
+  { id: "p5", name: "EUGEN Portable SSD 2TB", price: 179, img: "/test5.jpeg", rating: 4.9, tags: ["Ultra Fast"], specs: ["USB 4.0", "3,800MB/s", "IP67"], color: "#75E6DA" },
+  { id: "p6", name: "EUGEN Creator Mouse", price: 89, img: "/test5.jpeg", rating: 4.4, tags: ["Ergonomic"], specs: ["8K Polling", "MagWheel", "Quiet"], color: "#05445E" },
 ];
 
 const TOTAL = products.length; // <= requirement: show total products
@@ -535,92 +536,121 @@ function ProductCard({ p }: { p: (typeof products)[number] }) {
 function Catalog() {
   const featured = useMemo(() => products.slice(0, 6), []);
 
-  return (
-    <section id="catalog" className="py-10 md:py-14">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Trending  
-              <span className="bg-clip-text text-transparent bg-[linear-gradient(90deg,var(--brand-2),var(--brand-3))]"> right now</span>
-            </h2>
-            <p className="text-muted-foreground">Showing {featured.length} of {TOTAL} results • Curated by EUGEN</p>
-          </div>
+ return (
+  <section id="catalog" className="py-10 md:py-14">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Trending{" "}
+            <span className="bg-clip-text text-transparent bg-[linear-gradient(90deg,var(--brand-2),var(--brand-3))]">
+              right now
+            </span>
+          </h2>
 
-          {/* Toolbar */}
-          <div className="flex items-center gap-2">
-            {/* Sort (optical) */}
-            <Select defaultValue="popular">
-              <SelectTrigger className="w-[160px] rounded-xl">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="popular">Most popular</SelectItem>
-                <SelectItem value="new">Newest</SelectItem>
-                <SelectItem value="price_low">Price: Low to High</SelectItem>
-                <SelectItem value="price_high">Price: High to Low</SelectItem>
-                <SelectItem value="rating">Top rated</SelectItem>
-              </SelectContent>
-            </Select>
+          <p className="text-muted-foreground mt-1">
+            Showing <span className="font-medium text-foreground">{featured.length}</span> of{" "}
+            <span className="font-medium text-foreground">{821}</span> results •{" "}
+            <span className="text-foreground font-medium">Curated by EUGEN</span>
+          </p>
 
-            {/* View toggle (optical) */}
-            <div className="hidden sm:flex items-center gap-1 rounded-xl border p-1">
-              <Toggle size="sm" aria-label="Grid view" className="rounded-lg data-[state=on]:bg-[var(--brand-3)]/20" pressed>
-                <LayoutGrid className="h-4 w-4" />
-              </Toggle>
-              <Toggle size="sm" aria-label="List view" className="rounded-lg data-[state=on]:bg-[var(--brand-3)]/20">
-                <Rows className="h-4 w-4" />
-              </Toggle>
-            </div>
-
-            {/* Filters button (visual only) */}
-            <Button variant="outline" className="rounded-xl">
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              Filters
-            </Button>
-          </div>
+          {/* Meta data summary */}
+         
         </div>
 
-        {/* Quick filters (chips, scroll on mobile) */}
-        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {["All", "Laptops", "Monitors", "Audio", "Storage", "Accessories", "Peripherals", "Smartphones", "Tablets"].map((c) => (
-            <Button key={c} variant={c === "All" ? "default" : "secondary"} className="rounded-full h-8 px-3">
-              {c}
-            </Button>
-          ))}
-          
-        </div>
+        {/* Toolbar */}
+        <div className="flex items-center gap-2">
+          {/* Sort (optical) */}
+          <Select defaultValue="popular">
+            <SelectTrigger className="w-[160px] rounded-xl">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="popular">Most popular</SelectItem>
+              <SelectItem value="new">Newest</SelectItem>
+              <SelectItem value="price_low">Price: Low to High</SelectItem>
+              <SelectItem value="price_high">Price: High to Low</SelectItem>
+              <SelectItem value="rating">Top rated</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.4 }}
-          className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {featured.map((p) => (
-            <ProductCard key={p.id} p={p} />
-          ))}
-        </motion.div>
-
-        {/* Pagination (optical) */}
-        <div className="mt-8 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Page 1 of 5</p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="rounded-xl" size="sm">
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <Button className="rounded-xl" size="sm">
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+          {/* View toggle (optical) */}
+          <div className="hidden sm:flex items-center gap-1 rounded-xl border p-1">
+            <Toggle
+              size="sm"
+              aria-label="Grid view"
+              className="rounded-lg data-[state=on]:bg-[var(--brand-3)]/20"
+              pressed
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Toggle>
+            <Toggle
+              size="sm"
+              aria-label="List view"
+              className="rounded-lg data-[state=on]:bg-[var(--brand-3)]/20"
+            >
+              <Rows className="h-4 w-4" />
+            </Toggle>
           </div>
+
+          {/* Filters button (visual only) */}
+          <Button variant="outline" className="rounded-xl">
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            Filters
+          </Button>
         </div>
       </div>
-    </section>
-  );
+
+      {/* Quick filters (chips, scroll on mobile) */}
+      <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {[
+          "All",
+          "Laptops",
+          "Monitors",
+          "Audio",
+          "Storage",
+          "Accessories",
+          "Peripherals",
+          "Smartphones",
+          "Tablets",
+        ].map((c) => (
+          <Button key={c} variant={c === "All" ? "default" : "secondary"} className="rounded-full h-8 px-3">
+            {c}
+          </Button>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.4 }}
+        className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {featured.map((p) => (
+          <ProductCard key={p.id} p={p} />
+        ))}
+      </motion.div>
+
+      {/* Pagination (optical) */}
+      <div className="mt-8 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Page 1 of 5</p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="rounded-xl" size="sm">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <Button className="rounded-xl" size="sm">
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+);
 }
 
 
@@ -735,7 +765,7 @@ function SaleCarousel() {
 // AnnouncementBar.tsx
 function AnnouncementBar() {
   return (
-    <div className="w-full h-18 bg-[linear-gradient(90deg,var(--brand-2),var(--brand-3))] text-white">
+    <div className="w-full h-12 bg-[linear-gradient(90deg,var(--brand-2),var(--brand-3))] text-white">
       <div className="mx-auto max-w-7xl px-4 flex h-full items-center justify-center text-sm">
         🎉 48-hour flash sale: free express shipping over 50€ —{" "}
         <span className="ml-1 font-semibold underline">Shop now</span>
@@ -916,27 +946,33 @@ export default function Home() {
 
   useThemeCSS(theme);
 
-  return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background">
-        <AnimatePresence>{!entered && <IntroSplash onEnter={() => setEntered(true)} total={TOTAL} />}</AnimatePresence>
+    return (
+    <EugenChatProvider pageContext={{ route: "other" }}>
+      <TooltipProvider>
+        <div className="min-h-screen bg-background overflow-x-clip">
+          <AnimatePresence>
+            {!entered && (
+              <IntroSplash onEnter={() => setEntered(true)} total={TOTAL} />
+            )}
+          </AnimatePresence>
 
-        {entered && (
-          <>
-          <Header />
-            <Hero />
-            <TrustStrip/>
-            <Catalog />
-            <SaleCarousel />
-            <ReviewsStrip/>
-            <FAQ/>
-            <Footer />
-          </>
-        )}
+          {entered && (
+            <>
+              <Header />
+              <Hero />
+              <TrustStrip />
+              <Catalog />
+              <SaleCarousel />
+              <ReviewsStrip />
+              <FAQ />
+              <Footer />
+            </>
+          )}
 
-        <FiltersSheet open={sheetOpen} setOpen={setSheetOpen} />
-        <Toaster richColors closeButton position="top-center" />
-      </div>
-    </TooltipProvider>
+          <FiltersSheet open={sheetOpen} setOpen={setSheetOpen} />
+          <Toaster richColors closeButton position="top-center" />
+        </div>
+      </TooltipProvider>
+    </EugenChatProvider>
   );
 }
