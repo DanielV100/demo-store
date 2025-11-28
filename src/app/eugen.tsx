@@ -21,7 +21,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Portal } from "@radix-ui/react-portal";
-import { Bot, MessageCircle, Send, Sparkles, Info, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { Bot, MessageCircle, Send, Sparkles, Info, Trash2, ShoppingCart, Scale, HelpCircle } from "lucide-react";
+
+// ---------- Types ----------
 
 type EugenPageContext = {
   route: "home" | "category" | "pdp" | "cart" | "search" | "other";
@@ -32,11 +35,31 @@ type EugenPageContext = {
   query?: string;
 };
 
+// One Milvus hit (matches your backend fields)
+export type EugenProduct = {
+  id: string;
+  name: string;
+  manufacturer?: string | null;
+  price_brutto?: number | null;
+  ram_gb?: number | null;
+  ssd_gb?: number | null;
+  display_inch?: number | null;
+  cpu?: string | null;
+  image_path?: string | null;
+  item_type?: string | null;
+  description?: string | null;
+};
+
 type EugenChatMessage = {
   role: "user" | "assistant";
   content: string;
   at: number;
-  meta?: any;
+  meta?: {
+    // flattened & deduped product hits to render as cards
+    products?: EugenProduct[];
+    // raw results (optional debugging)
+    rawResults?: Record<string, EugenProduct[]>;
+  };
 };
 
 function useLocalThread(key = "eugen.thread.v1") {
@@ -99,6 +122,106 @@ function useSuggestions(ctx: EugenPageContext) {
   }, [ctx]);
 }
 
+// ---------- Helpers ----------
+
+const euro = (n?: number | null) =>
+  typeof n === "number"
+    ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n)
+    : "—";
+
+function specLine(p: EugenProduct) {
+  const parts: string[] = [];
+  if (p.ram_gb) parts.push(`${p.ram_gb}GB RAM`);
+  if (p.ssd_gb) parts.push(`${p.ssd_gb}GB SSD`);
+  if (p.display_inch) parts.push(`${p.display_inch}"`);
+  if (p.cpu) parts.push(String(p.cpu));
+  return parts.join(" • ");
+}
+
+function flattenResults(results: Record<string, EugenProduct[]>, limit = 8): EugenProduct[] {
+  // Keep query order → item order, but de-dupe by id
+  const seen = new Set<string>();
+  const out: EugenProduct[] = [];
+  for (const q of Object.keys(results)) {
+    for (const item of results[q] || []) {
+      const id = item?.id ?? "";
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(item);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+// ---------- UI: product hit card ----------
+
+function ProductHitCard({ p, onAsk }: { p: EugenProduct; onAsk?: (q: string) => void }) {
+  const title = p.name || "Unnamed";
+  const img = p.image_path || "/placeholder.svg";
+  const line = specLine(p);
+
+  return (
+    <div className="w-[260px] sm:w-[320px] shrink-0 snap-start
+                    group overflow-hidden rounded-2xl border bg-card/70 backdrop-blur
+                    transition hover:shadow-lg">
+      <div className="relative aspect-[4/3] border-b bg-white dark:bg-neutral-900/40">
+        <Image
+          src={img}
+          alt={title}
+          fill
+          className="object-contain p-4 transition-transform duration-500 group-hover:scale-[1.02]"
+        />
+        {p.manufacturer && (
+          <div className="absolute left-3 top-3 text-[11px] rounded-full bg-background/80 px-2 py-0.5 border backdrop-blur">
+            {p.manufacturer}
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-medium leading-tight line-clamp-1">{title}</div>
+            {line && <div className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{line}</div>}
+          </div>
+          <div className="shrink-0 text-right font-semibold">{euro(p.price_brutto)}</div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <Button
+            size="sm"
+            className="rounded-lg"
+            onClick={() => toast.success(`${title} added to cart (demo)`)}
+          >
+            <ShoppingCart className="h-4 w-4 mr-1.5" />
+            Add
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-lg"
+            onClick={() => onAsk?.(`Compare ${title} with a similar but cheaper option`)}
+          >
+            <Scale className="h-4 w-4 mr-1.5" />
+            Compare
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-lg"
+            onClick={() => onAsk?.(`Why did you pick ${title}? Be specific.`)}
+          >
+            <HelpCircle className="h-4 w-4 mr-1.5" />
+            Why this?
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Main provider ----------
+
 export function EugenChatProvider({
   pageContext,
   endpoint = "/api/eugen/chat",
@@ -140,21 +263,14 @@ export function EugenChatProvider({
         const d1 = setTimeout(() => setShowIntroHint(true), 600);
         const d2 = setTimeout(() => setShowIntroHint(false), 10600);
         return () => {
-          clearTimeout(d1);
-          clearTimeout(d2);
+          clearTimeout(d1); clearTimeout(d2);
         };
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
   const dismissIntro = () => {
     setShowIntroHint(false);
-    try {
-      localStorage.setItem(INTRO_KEY, "1");
-    } catch {
-      // ignore
-    }
+    try { localStorage.setItem(INTRO_KEY, "1"); } catch {}
   };
 
   // keyboard: Shift+E toggles, Cmd/Ctrl+/ focuses
@@ -168,14 +284,14 @@ export function EugenChatProvider({
       }
       if (e.key.toLowerCase() === "e" && e.shiftKey) {
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen(v => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // autoscroll on open/new message
+  // autoscroll
   useEffect(() => {
     if (!open) return;
     const el = scrollRef.current;
@@ -183,24 +299,23 @@ export function EugenChatProvider({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [open, messages.length]);
 
-  // “Popular asks” visibility rules:
-  // - Show only when no messages yet AND not loading AND input is empty.
   const suggestions = useSuggestions(pageContext);
-  const showSuggestions =
-    messages.length === 0 && !loading && (input ?? "").trim().length === 0;
+  const showSuggestions = messages.length === 0 && !loading && (input ?? "").trim().length === 0;
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
+
     const userMsg: EugenChatMessage = {
       role: "user",
       content: trimmed,
       at: Date.now(),
-      meta: { ctx: pageContext },
+      meta: { },
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -208,25 +323,29 @@ export function EugenChatProvider({
         body: JSON.stringify({ message: userMsg, thread: [] }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json(); // { reply: string }
+      const data = await res.json(); // { reply, results, ... }
+
+      const products = data?.results ? flattenResults(data.results, 8) : [];
       const bot: EugenChatMessage = {
         role: "assistant",
         content: data.reply ?? "I’m here! How can I help you decide?",
         at: Date.now(),
+        meta: { products, rawResults: data?.results },
       };
-      setMessages((prev) => [...prev, bot]);
-    } catch {
+      setMessages(prev => [...prev, bot]);
+    } catch (e: any) {
       toast.error("EUGEN is thinking… but the network failed. Try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  // ----- UI -----
   return (
     <>
       {children}
 
-      {/* FAB + Intro hint (FAB HIDDEN when chat is open) */}
+      {/* FAB + Intro hint (FAB hidden when open) */}
       {!open && (
         <Portal>
           <div className="fixed inset-0 z-[10060] pointer-events-none">
@@ -234,10 +353,7 @@ export function EugenChatProvider({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <motion.button
-                    onClick={() => {
-                      setOpen(true);
-                      dismissIntro();
-                    }}
+                    onClick={() => { setOpen(true); dismissIntro(); }}
                     className="pointer-events-auto fixed bottom-5 right-5 flex items-center gap-2 rounded-full shadow-lg
                                bg-[linear-gradient(90deg,var(--brand-2),var(--brand-3))] text-white font-medium px-4 py-2"
                     initial={{ opacity: 0, y: 20 }}
@@ -255,9 +371,8 @@ export function EugenChatProvider({
                 <TooltipContent>Open EUGEN — Product Advice (⇧E)</TooltipContent>
               </Tooltip>
 
-              {/* Onboarding hint bubble (first-time only) */}
               <AnimatePresence>
-                {showIntroHint && (
+                {showSuggestions && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -271,20 +386,10 @@ export function EugenChatProvider({
                       Your digital <b>Product Advisor</b> — ask for tips, comparisons & setups.
                     </div>
                     <div className="mt-2 flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => {
-                          setOpen(true);
-                          dismissIntro();
-                        }}
-                      >
+                      <Button size="sm" className="h-7 px-2" onClick={() => { setOpen(true); dismissIntro(); }}>
                         Open now
                       </Button>
-                      <button
-                        onClick={dismissIntro}
-                        className="text-xs text-muted-foreground underline"
-                      >
+                      <button onClick={dismissIntro} className="text-xs text-muted-foreground underline">
                         Dismiss
                       </button>
                     </div>
@@ -297,37 +402,25 @@ export function EugenChatProvider({
       )}
 
       {/* Chat sheet */}
-      <Sheet
-        open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) dismissIntro();
-        }}
-      >
+      <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) dismissIntro(); }}>
         <SheetContent
           side="right"
-          className="z-[10050] p-0 gap-0 border-l flex flex-col w-[88vw] sm:w-[520px] h-dvh overflow-hidden"
+          className="z-[10050] p-0 gap-0 border-l flex flex-col w-[88vw] sm:w-[560px] h-dvh overflow-hidden"
         >
-          {/* NOTE: shadcn SheetContent already includes its own top-right Close (X).
-              We DO NOT render a second one to avoid duplicates. */}
           <SheetHeader className="px-5 pt-5 pb-2">
             <div className="flex items-center justify-between">
               <SheetTitle className="flex items-center gap-2">
                 <Bot className="h-4 w-4" />
                 EUGEN — Product Advisor
               </SheetTitle>
-            
             </div>
-
             <div className="px-1 pb-1 text-xs text-muted-foreground flex items-center gap-2">
               <Info className="h-3.5 w-3.5" />
-              EUGEN uses the current page to tailor answers. No personal data shared without consent.
+              EUGEN can return text and product cards. No personal data shared without consent.
             </div>
           </SheetHeader>
 
-          {/* “Popular asks” — improved visual & placement.
-              - Sits naturally under the header.
-              - Collapses as soon as the user types or after first message. */}
+          {/* Suggestions */}
           <AnimatePresence initial={false}>
             {showSuggestions && (
               <motion.div
@@ -348,11 +441,7 @@ export function EugenChatProvider({
                         variant="outline"
                         size="sm"
                         className="rounded-full h-8 px-3"
-                        onClick={() => {
-                          // send and collapse
-                          setInput("");
-                          sendMessage(q);
-                        }}
+                        onClick={() => { setInput(""); sendMessage(q); }}
                       >
                         {q}
                       </Button>
@@ -366,7 +455,11 @@ export function EugenChatProvider({
           <Separator />
 
           {/* Messages */}
-          <ScrollArea className="flex-1 px-5" ref={scrollRef as any}>
+<ScrollArea
+  className="flex-1 px-5 overscroll-contain
+             [&_[data-radix-scroll-area-viewport]]:overflow-x-hidden"
+  ref={scrollRef as any}
+>
             <div className="space-y-3 py-6">
               <AnimatePresence initial={false}>
                 {messages.length === 0 && !loading && !showSuggestions && (
@@ -379,26 +472,52 @@ export function EugenChatProvider({
                     <p>
                       <strong>EUGEN</strong>, your digital <strong>Product Advisor</strong>.
                     </p>
-                    <p className="text-xs mt-1">
-                      Compare laptops, find best value, or build a setup by budget.
-                    </p>
+                    <p className="text-xs mt-1">Compare laptops, find best value, or build a setup by budget.</p>
                   </motion.div>
                 )}
 
-                {messages.map((m, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`max-w-[86%] rounded-2xl border p-3 text-sm leading-relaxed ${
-                      m.role === "user"
-                        ? "ml-auto bg-background"
-                        : "mr-auto bg-card/70 backdrop-blur"
-                    }`}
-                  >
-                    {m.content}
-                  </motion.div>
-                ))}
+                {messages.map((m, i) => {
+                  const isBot = m.role === "assistant";
+                  const products = m.meta?.products ?? [];
+
+                  return (
+                    <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                      {/* Text bubble */}
+<div
+  className={`max-w-[86%] rounded-2xl border p-3 text-sm leading-relaxed
+              break-words overflow-x-hidden
+              ${isBot ? "mr-auto bg-card/70 backdrop-blur" : "ml-auto bg-background"}`}
+>
+  {m.content}
+</div>
+
+                      {/* Card grid (assistant only, when products exist) */}
+{isBot && products.length > 0 && (
+  // go edge-to-edge inside the ScrollArea which has px-5
+  <div className="mt-2 -mx-5 px-5 w-full">
+    {/* Horizontal rail (the ONLY place that can scroll horizontally) */}
+    <div
+      className="w-full overflow-x-auto overscroll-contain pb-2
+                 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]
+                 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      aria-label="Recommended products"
+    >
+      {/* Use inline-flex so it NEVER wraps; every card is shrink-0 */}
+      <div className="inline-flex gap-3 pr-1 snap-x snap-mandatory">
+        {products.map((p) => (
+          <ProductHitCard
+            key={p.id}
+            p={p}
+            onAsk={(q) => { setInput(""); sendMessage(q); }}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+                    </motion.div>
+                  );
+                })}
 
                 {loading && (
                   <motion.div
@@ -415,13 +534,10 @@ export function EugenChatProvider({
 
           <Separator />
 
-          {/* Composer with embedded Send button */}
+          {/* Composer */}
           <div className="p-4 flex items-center gap-2 shrink-0">
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendMessage(input);
-              }}
+              onSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
               className="flex-1"
             >
               <div className="relative">
@@ -445,7 +561,7 @@ export function EugenChatProvider({
               </div>
             </form>
 
-            {/* Optional: clear-thread icon */}
+            {/* Clear-thread */}
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -453,7 +569,9 @@ export function EugenChatProvider({
                     variant="ghost"
                     size="icon"
                     className="rounded-xl"
-                    onClick={() => {
+                    onClick={async () => {
+                      // (Optional) also clear server memory if you added the reset proxy
+                      try { await fetch("/api/eugen/chat/reset", { method: "POST" }); } catch {}
                       reset();
                       toast.message("Thread cleared");
                     }}
@@ -466,15 +584,13 @@ export function EugenChatProvider({
               </Tooltip>
             </TooltipProvider>
           </div>
-
-         
         </SheetContent>
       </Sheet>
     </>
   );
 }
 
-/** Optional inline PDP advisor card */
+/** Optional inline PDP advisor card (unchanged) */
 export function EugenInlinePDP({ productName }: { productName?: string }) {
   return (
     <div className="mt-6 rounded-2xl border p-4 bg-card/60 backdrop-blur">

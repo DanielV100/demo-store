@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,11 +24,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html className="h-full overflow-x-clip">
-  <body className="min-h-dvh overflow-x-clip">
-    {children}
-  </body>
-</html>
-
+    <html className="h-full overflow-x-clip" suppressHydrationWarning>
+      <body className="min-h-dvh overflow-x-clip" suppressHydrationWarning>
+        {children}
+        <Script
+          type="module"
+          src="http://localhost:5173/src/main.ts"
+          strategy="afterInteractive"
+        />
+      </body>
+    </html>
   );
 }
